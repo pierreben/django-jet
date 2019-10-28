@@ -42,6 +42,8 @@ ToolbarUpdater.prototype = {
                     $select.attr('multiple', true);
                 }
 
+                var multiple = $select.attr('multiple');
+
                 $items.each(function(i) {
                     var $item = $(this);
                     var $link = $item.find('a');
@@ -50,7 +52,11 @@ ToolbarUpdater.prototype = {
                         .attr('data-url', $link.attr('href'))
                         .attr('selected', $item.hasClass('selected'));
 
-                    if (i == 0 ) {
+                    $.each($item.prop('attributes'), function () {
+                        $option.attr(this.name, this.value);
+                    });
+
+                    if ( !multiple && i == 0 ) {
                         if (filterName != null) {
                             $option.text(filterName)
                         }
