@@ -111,13 +111,73 @@ except ImportError:
     pass
 
 
-class MultipleChoiceListFilter(SimpleListFilter):
+class OptgroupSimpleListFilter(SimpleListFilter):
     """
-        A .mulitple choice list filter, working properly with jet and Select2.
+        A.simple list filter allowing to use optgroup, working properly with jet and Select2
+    """
+
+    template = "jet/optgroup_simple_list_filter.html"
+    empty_choice = True
+
+    def lookups(self, request, model_admin):
+        """
+        Must be overridden to return a list of tuples:
+         (value, verbose value)
+         or
+         (verbose value, (value, verbose value))
+        """
+        raise NotImplementedError(
+            "The OptgroupSimpleListFilter.lookups() method must be overridden to "
+            "return a list of tuples (value, verbose value) or (verbose value, (value, verbose value))."
+        )
+
+    def get_choice(self, changelist, value, label):
+        return {
+            "selected": self.value() == str(value),
+            "query_string": changelist.get_query_string({self.parameter_name: value}),
+            "display": label,
+        }
+
+    def choices(self, changelist):
+        if self.empty_choice:
+            yield (
+                None,
+                [
+                    {
+                        "selected": self.value() is None,
+                        "query_string": changelist.get_query_string(
+                            remove=[self.parameter_name]
+                        ),
+                        "display": _("All"),
+                    }
+                ],
+            )
+
+        for index, (option_value, option_label) in enumerate(self.lookup_choices):
+            if option_value is None:
+                option_value = ""
+
+            subgroup = []
+            if isinstance(option_label, (list, tuple)):
+                group_name = option_value
+                choices = option_label
+            else:
+                group_name = None
+                choices = [(option_value, option_label)]
+            yield (group_name, subgroup)
+
+            for subvalue, sublabel in choices:
+                subgroup.append(self.get_choice(changelist, subvalue, sublabel))
+
+
+class MultipleChoiceListFilter(OptgroupSimpleListFilter):
+    """
+        A.mulitple choice list filter, working properly with jet and Select2.
         Inspired from: https://github.com/ctxis/django-admin-multiple-choice-list-filter/
     """
 
     template = "jet/multiple_choice_list_filter.html"
+    empty_choice = False
 
     def lookups(self, request, model_admin):
         """
@@ -137,10 +197,9 @@ class MultipleChoiceListFilter(SimpleListFilter):
     def value_as_list(self):
         return self.value().split(",") if self.value() else []
 
-    def choices(self, changelist):
-        for lookup, title in self.lookup_choices:
-            yield {
-                "selected": str(lookup) in self.value_as_list(),
-                "value": str(lookup),
-                "display": title,
-            }
+    def get_choice(self, changelist, value, label):
+        return {
+            "selected": str(value) in self.value_as_list(),
+            "value": str(value),
+            "display": label,
+        }
